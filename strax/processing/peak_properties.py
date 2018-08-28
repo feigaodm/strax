@@ -76,3 +76,5 @@ def compute_widths(peaks):
 
     i = len(desired_fr) // 2
     peaks['width'][:, 1:] = fr_times[:, i:] - fr_times[:, :i]
+    peaks['rise_time'][:, 1:] = fr_times[:, len(peaks[0]['width']) // 2]\
+                                - fr_times[:, :i]

@@ -175,6 +175,7 @@ class PeakBasics(strax.Plugin):
         r['endtime'] = p['time'] + p['dt'] * p['length']
         r['n_channels'] = (p['area_per_channel'] > 0).sum(axis=1)
         r['range_50p_area'] = p['width'][:, 5]
+        r['rise_since_90p_area'] = p['rise_time'][:, 5]
         r['max_pmt'] = np.argmax(p['area_per_channel'], axis=1)
 
         # TODO: get n_top_pmts from config...
@@ -271,6 +272,8 @@ class PeakPositions(strax.Plugin):
 @strax.takes_config(
     strax.Option('s1_max_width', default=150,
                  help="Maximum (IQR) width of S1s"),
+    strax.Option('s1_max_rise', default=70,
+                 help="Maximum rise time of S1s (90p to middle)"),
     strax.Option('s1_min_n_channels', default=3,
                  help="Minimum number of PMTs that must contribute to a S1"),
     strax.Option('s2_min_area', default=100,
@@ -290,10 +293,12 @@ class PeakClassification(strax.Plugin):
 
         is_s1 = p['n_channels'] > self.config['s1_min_n_channels']
         is_s1 &= p['range_50p_area'] < self.config['s1_max_width']
+        is_s1 &= p['rise_since_90p_area'] < self.config['s1_max_rise']
         r['type'][is_s1] = 1
 
         is_s2 = p['area'] > self.config['s2_min_area']
-        is_s2 &= p['range_50p_area'] > self.config['s2_min_width']
+        is_s2 &= (p['range_50p_area'] > self.config['s2_min_width']
+                  | p['rise_since_90p_area'] < self.config['s1_max_rise'] )
         r['type'][is_s2] = 2
 
         return r
