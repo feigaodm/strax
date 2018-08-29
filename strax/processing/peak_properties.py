@@ -64,7 +64,7 @@ def compute_widths(peaks):
 
     desired_widths = np.linspace(0, 1, len(peaks[0]['width']))
     # 0% are width is 0 by definition, and it messes up the calculation below
-    desired_widths = desired_widths[1:]
+    # desired_widths = desired_widths[1:]
 
     # Which area fractions do we need times for?
     desired_fr = np.concatenate([0.5 - desired_widths / 2,
@@ -75,6 +75,6 @@ def compute_widths(peaks):
     fr_times *= peaks['dt'].reshape(-1, 1)
 
     i = len(desired_fr) // 2
-    peaks['width'][:, 1:] = fr_times[:, i:] - fr_times[:, :i]
-    peaks['rise_time'][:, 1:] = fr_times[:, len(peaks[0]['width']) // 2]\
+    peaks['width'][:, 1:] = fr_times[:, i+1:] - fr_times[:, :i]
+    peaks['rise_time'][:, :] = fr_times[:, i].reshape(-1, 1)\
                                 - fr_times[:, :i]
