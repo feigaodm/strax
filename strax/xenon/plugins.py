@@ -280,11 +280,11 @@ class PeakPositions(strax.Plugin):
                  help="Maximum rise time of S1s (90p to middle)"),
     strax.Option('s1_min_n_channels', default=3,
                  help="Minimum number of PMTs that must contribute to a S1"),
-    strax.Option('s2_min_area', default=100,
+    strax.Option('s2_min_area', default=10,
                  help="Minimum area (PE) for S2s"),
-    strax.Option('s2_min_width', default=200,
+    strax.Option('s2_min_width', default=100,
                  help="Minimum width for S2s"),
-    strax.Option('s2_min_rise', default=100,
+    strax.Option('s2_min_rise', default=70,
                  help="Minimum rise time for S2s")
 )
 class PeakClassification(strax.Plugin):
@@ -299,12 +299,12 @@ class PeakClassification(strax.Plugin):
         r = np.zeros(len(p), dtype=self.dtype)
 
         is_s1 = p['n_channels'] > self.config['s1_min_n_channels']
-        is_s1 &= p['range_50p_area'] < self.config['s1_max_width']
+        # is_s1 &= p['range_50p_area'] < self.config['s1_max_width']
         is_s1 &= p['rise_since_90p_area'] < self.config['s1_max_rise']
         r['type'][is_s1] = 1
 
         is_s2 = p['area'] > self.config['s2_min_area']
-        is_s2 &= p['range_50p_area'] > self.config['s2_min_width']
+        #is_s2 &= p['range_50p_area'] > self.config['s2_min_width']
         is_s2 &= p['rise_since_90p_area'] > self.config['s2_min_rise']
         r['type'][is_s2] = 2
 
