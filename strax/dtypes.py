@@ -90,5 +90,7 @@ def peak_dtype(n_channels=100, n_sum_wv_samples=200, n_widths=11):
         (('Waveform data in PE/sample (not PE/ns!)',
             'data'), np.float32, n_sum_wv_samples),
         (('Peak widths in ns: range of central area fraction',
-            'width'), np.float32, n_widths)
+            'width'), np.float32, n_widths),
+        (('Peak rise time in ns: from 90% to 50% area',
+          'rise_time'), np.float32, n_widths-1)
     ]

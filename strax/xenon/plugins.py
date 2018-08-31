@@ -113,6 +113,7 @@ class Records(strax.Plugin):
     strax.Option('diagnose_sorting', track=False, default=False,
                  help="Enable runtime checks for sorting and disjointness"))
 class Peaks(strax.Plugin):
+    __version__ = '0.0.1'
     depends_on = ('records',)
     data_kind = 'peaks'
     parallel = True
@@ -143,6 +144,7 @@ class Peaks(strax.Plugin):
 
 @export
 class PeakBasics(strax.Plugin):
+    __version__ = '0.0.1'
     parallel = True
     depends_on = ('peaks',)
     dtype = [
@@ -158,6 +160,8 @@ class PeakBasics(strax.Plugin):
             'max_pmt'), np.int16),
         (('Width (in ns) of the central 50% area of the peak',
             'range_50p_area'), np.float32),
+        (('RiseTime (in ns) from 90% to 50% percentile of the peak',
+            'rise_since_90p_area'), np.float32),
         (('Fraction of area seen by the top array',
             'area_fraction_top'), np.float32),
 
@@ -175,6 +179,7 @@ class PeakBasics(strax.Plugin):
         r['endtime'] = p['time'] + p['dt'] * p['length']
         r['n_channels'] = (p['area_per_channel'] > 0).sum(axis=1)
         r['range_50p_area'] = p['width'][:, 5]
+        r['rise_since_90p_area'] = p['rise_time'][:, 2]
         r['max_pmt'] = np.argmax(p['area_per_channel'], axis=1)
 
         # TODO: get n_top_pmts from config...
@@ -271,12 +276,17 @@ class PeakPositions(strax.Plugin):
 @strax.takes_config(
     strax.Option('s1_max_width', default=150,
                  help="Maximum (IQR) width of S1s"),
+    strax.Option('s1_max_rise', default=70,
+                 help="Maximum rise time of S1s (90p to middle)"),
     strax.Option('s1_min_n_channels', default=3,
                  help="Minimum number of PMTs that must contribute to a S1"),
-    strax.Option('s2_min_area', default=100,
+    strax.Option('s2_min_area', default=10,
                  help="Minimum area (PE) for S2s"),
-    strax.Option('s2_min_width', default=200,
-                 help="Minimum width for S2s"))
+    strax.Option('s2_min_width', default=100,
+                 help="Minimum width for S2s"),
+    strax.Option('s2_min_rise', default=70,
+                 help="Minimum rise time for S2s")
+)
 class PeakClassification(strax.Plugin):
     __version__ = '0.0.1'
     depends_on = ('peak_basics',)
@@ -289,11 +299,13 @@ class PeakClassification(strax.Plugin):
         r = np.zeros(len(p), dtype=self.dtype)
 
         is_s1 = p['n_channels'] > self.config['s1_min_n_channels']
-        is_s1 &= p['range_50p_area'] < self.config['s1_max_width']
+        # is_s1 &= p['range_50p_area'] < self.config['s1_max_width']
+        is_s1 &= p['rise_since_90p_area'] < self.config['s1_max_rise']
         r['type'][is_s1] = 1
 
         is_s2 = p['area'] > self.config['s2_min_area']
-        is_s2 &= p['range_50p_area'] > self.config['s2_min_width']
+        #is_s2 &= p['range_50p_area'] > self.config['s2_min_width']
+        is_s2 &= p['rise_since_90p_area'] > self.config['s2_min_rise']
         r['type'][is_s2] = 2
 
         return r
@@ -451,6 +463,8 @@ class EventBasics(strax.LoopPlugin):
                         f's{i}_area_fraction_top'), np.float32),
                       ((f'Main S{i} width (ns, 50% area)',
                         f's{i}_range_50p_area'), np.float32),
+                      ((f'Main S{i} rise time (ns, since 90% area)',
+                        f's{i}_rise_since_90p_area'), np.float32),
                       ((f'Main S{i} number of competing peaks',
                         f's{i}_n_competing'), np.int32)]
         dtype += [(f'x_s2', np.float32,
@@ -479,7 +493,7 @@ class EventBasics(strax.LoopPlugin):
             s = main_s[s_i] = ss[main_i]
 
             for prop in ['area', 'area_fraction_top',
-                         'range_50p_area', 'n_competing']:
+                         'range_50p_area', 'rise_since_90p_area', 'n_competing']:
                 result[f's{s_i}_{prop}'] = s[prop]
             if s_i == 2:
                 for q in 'xy':
